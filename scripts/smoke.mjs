@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { chromium } from 'playwright';
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
 
 const base = process.env.FLOWLOOM_URL ?? 'http://127.0.0.1:4173/Flowloom/';
 async function ready() {

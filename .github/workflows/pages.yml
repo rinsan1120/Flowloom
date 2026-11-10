@@ -33,12 +33,12 @@ jobs:
         run: npm run build
       - name: Set up Chromium smoke test
         run: |
-          npm install --no-save --package-lock=false playwright
-          npx playwright install --with-deps chromium
+          npm install --prefix "$RUNNER_TEMP/flowloom-smoke" --no-audit --no-fund playwright
+          "$RUNNER_TEMP/flowloom-smoke/node_modules/.bin/playwright" install --with-deps chromium
       - name: Browser smoke test
         run: |
           npm run preview -- --port 4173 > /tmp/flowloom-preview.log 2>&1 &
-          node scripts/smoke.mjs
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/flowloom-smoke/node_modules/playwright/index.mjs" node scripts/smoke.mjs
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
