@@ -47,7 +47,7 @@ function App() {
       const sourceSide = self ? Position.Top : reverse ? Position.Bottom : Position.Right;
       const targetSide = self ? Position.Top : reverse ? Position.Bottom : Position.Left;
       ports.get(t.from)?.push({ id: `s-${t.id}`, side: sourceSide, type: 'source', percent: 50 }); ports.get(t.to)?.push({ id: `t-${t.id}`, side: targetSide, type: 'target', percent: 50 });
-      return { id: t.id, source: t.from, target: t.to, sourceHandle: `s-${t.id}`, targetHandle: `t-${t.id}`, type: 'routed', data: { lane }, label: t.action.length > 26 ? `${t.action.slice(0, 26)}…` : t.action || '遷移', selected: selected?.type === 'edge' && selected.id === t.id, markerEnd: { type: MarkerType.ArrowClosed, color: '#839995' }, ariaLabel: `遷移: ${t.action}` };
+      return { id: t.id, source: t.from, target: t.to, sourceHandle: `s-${t.id}`, targetHandle: `t-${t.id}`, type: 'routed', data: { lane }, selected: selected?.type === 'edge' && selected.id === t.id, markerEnd: { type: MarkerType.ArrowClosed, color: '#839995' }, ariaLabel: `遷移: ${t.action}` };
     });
     ports.forEach(list => Object.values(Position).forEach(side => { const group = list.filter(p => p.side === side); group.forEach((p, i) => p.percent = (i + 1) * 100 / (group.length + 1)); }));
     setNodes(visible.map((s, i) => ({ id: s.id, type: 'card', position: positions[s.id] ?? {x:0,y:0}, selected: selected?.type === 'node' && selected.id === s.id, data: { name: s.name, subtitle: mode === 'screens' ? kindLabel(s as Blueprint['screens'][number]) : `工程 ${String(i + 1).padStart(2, '0')}`, kind: mode === 'screens' ? String(s.kind) : 'step', ports: ports.get(s.id) ?? [] }, ariaLabel: s.name })));
