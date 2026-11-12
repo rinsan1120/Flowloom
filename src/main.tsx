@@ -58,8 +58,8 @@ const AI_PROMPT = `あなたはアプリの設計を「Flowloom JSON」という
 - layout は空のままにする（配置は後で人が整える）。
 - 出力はJSONのみ。前置き・解説などの文章は付けない。
 
-# 作ってほしいアプリ
-（ここにアプリの概要、画面の一覧、操作の流れを書く）`;
+# 図にするアプリについて
+（ここに対象アプリの概要、画面の一覧、各画面でできる操作、画面同士のつながり、業務の流れを書く。既存のアプリの説明資料や画面一覧があれば、それを貼ってもよい）`;
 function AiPromptHelp() {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -67,7 +67,7 @@ function AiPromptHelp() {
     catch { const ta = document.createElement('textarea'); ta.value = AI_PROMPT; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
     setCopied(true); window.setTimeout(() => setCopied(false), 2000);
   };
-  return <details className="ai-prompt"><summary>AIにJSONを作らせるプロンプト</summary><p>ChatGPTやClaudeなどのAIにこのプロンプトを貼り、「作ってほしいアプリ」の部分に作りたいアプリの説明を書き足すと、Flowloomで開けるJSONを出力させることができます。</p><pre>{AI_PROMPT}</pre><button className="primary" onClick={() => void copy()}>{copied ? 'コピーしました' : 'プロンプトをコピー'}</button></details>;
+  return <details className="ai-prompt"><summary>AIにJSONを作らせるプロンプト</summary><p>ChatGPTやClaudeなどのAIにこのプロンプトを貼り、「図にするアプリについて」の部分に、対象アプリの画面構成や操作の流れを書く（既存のアプリなら、その説明や画面一覧を貼る）と、Flowloomで開けるJSONに整理させることができます。</p><pre>{AI_PROMPT}</pre><button className="primary" onClick={() => void copy()}>{copied ? 'コピーしました' : 'プロンプトをコピー'}</button></details>;
 }
 const kindLabel = (s: Blueprint['screens'][number]) => `${s.kind === 'dialog' ? 'ダイアログ' : s.kind === 'screen' ? '通常画面' : '種別不明'}${s.kindInferred ? '（推定）' : ''}`;
 type Selection = { type: 'node' | 'edge'; id: string } | null;
