@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrange, convertDomain, diff, flowConnections, flowEdges, parseBlueprint, withLayout } from './model';
+import { arrange, convertDomain, diff, flowConnections, flowEdges, parseBlueprint, routeBetween, withLayout } from './model';
 import { sample } from './sample';
 
 describe('Flowloom JSON', () => {
@@ -105,5 +105,24 @@ describe('Flowloom JSON', () => {
     const links = diff(before, after).find(d => d.label === '接続');
     expect(links?.removed).toEqual([JSON.stringify(['lending', 'retry'])]);
     expect(links?.added).toEqual([JSON.stringify(['lending', 'direct'])]);
+  });
+});
+
+describe('routeBetween', () => {
+  const edges = [
+    { id: 'e1', from: 'a', to: 'b' },
+    { id: 'e2', from: 'b', to: 'c' },
+    { id: 'e3', from: 'a', to: 'c' },
+    { id: 'e4', from: 'c', to: 'a' },
+  ];
+  it('prefers the direct edge over the long way around', () => {
+    expect(routeBetween(edges, 'a', 'c')).toEqual({ nodeIds: ['a', 'c'], edgeIds: ['e3'] });
+  });
+  it('chains multiple hops in order', () => {
+    expect(routeBetween(edges, 'b', 'a')).toEqual({ nodeIds: ['b', 'c', 'a'], edgeIds: ['e2', 'e4'] });
+  });
+  it('returns null when unreachable and a trivial route for the same node', () => {
+    expect(routeBetween(edges, 'c', 'x')).toBeNull();
+    expect(routeBetween(edges, 'a', 'a')).toEqual({ nodeIds: ['a'], edgeIds: [] });
   });
 });

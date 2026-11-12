@@ -80,6 +80,26 @@ export function flowConnections(f: Blueprint['flows'][number]): FlowConnection[]
   return f.steps.slice(1).map((s, i) => ({ id: `order-${i}`, from: f.steps[i].id, to: s.id, action: `${i + 1} → ${i + 2}` }));
 }
 export const flowEdges = (f: Blueprint['flows'][number]) => flowConnections(f).map(({ from, to }) => ({ from, to }));
+/** Shortest directed route between two nodes (BFS); null when unreachable. */
+export function routeBetween(edges: { id: string; from: string; to: string }[], from: string, to: string): { nodeIds: string[]; edgeIds: string[] } | null {
+  if (from === to) return { nodeIds: [from], edgeIds: [] };
+  const prev = new Map<string, { node: string; edge: string }>();
+  const seen = new Set([from]); const queue = [from];
+  while (queue.length) {
+    const cur = queue.shift()!;
+    for (const e of edges) {
+      if (e.from !== cur || seen.has(e.to)) continue;
+      seen.add(e.to); prev.set(e.to, { node: cur, edge: e.id });
+      if (e.to === to) {
+        const nodeIds = [to]; const edgeIds: string[] = []; let n = to;
+        while (n !== from) { const p = prev.get(n)!; edgeIds.unshift(p.edge); nodeIds.unshift(p.node); n = p.node; }
+        return { nodeIds, edgeIds };
+      }
+      queue.push(e.to);
+    }
+  }
+  return null;
+}
 function complete(ids: string[], saved: Record<string, Point>, edges: {from: string; to: string}[]) {
   const missing = ids.filter(id => !Object.hasOwn(saved, id));
   if (!missing.length) return Object.fromEntries(ids.map(id => [id, saved[id]]));
