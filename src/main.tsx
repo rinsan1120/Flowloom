@@ -115,9 +115,12 @@ function App() {
     if (selected?.type === 'node' && fromNodeId && selected.id !== fromNodeId) {
       const go = routeBetween(connections, fromNodeId, selected.id);
       const back = routeBetween(connections, selected.id, fromNodeId);
-      if (go || back) {
-        const litN = new Set<string>([fromNodeId, selected.id]); const litE = new Set<string>();
-        for (const r of [go, back]) { r?.nodeIds.forEach(id => litN.add(id)); r?.edgeIds.forEach(id => litE.add(id)); }
+      const litN = new Set<string>([fromNodeId, selected.id]); const litE = new Set<string>();
+      for (const r of [go, back]) { r?.nodeIds.forEach(id => litN.add(id)); r?.edgeIds.forEach(id => litE.add(id)); }
+      // Every direct in/out connection of the selected box stays lit too,
+      // so all routes into the box are visible at a glance.
+      for (const t of connections) if (t.from === selected.id || t.to === selected.id) { litE.add(t.id); litN.add(t.from); litN.add(t.to); }
+      if (litE.size) {
         dimNodes = new Set(visible.map(s => s.id).filter(id => !litN.has(id)));
         dimEdges = new Set(connections.map(t => t.id).filter(id => !litE.has(id)));
       }

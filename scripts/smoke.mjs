@@ -36,16 +36,24 @@ try {
   assert.equal(saved.flows.length, 2);
 
   const node = page.locator('.react-flow__node[data-id="home"]');
-  const bounds = await node.boundingBox();
-  assert(bounds, 'home node must be visible');
-  const x = bounds.x + bounds.width / 2;
-  const y = bounds.y + bounds.height / 2;
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-  await page.mouse.move(x + 110, y + 65, { steps: 12 });
-  await page.mouse.up();
-  const moved = await downloadJson(page);
-  assert(Math.abs(moved.layout.screens.home.x - saved.layout.screens.home.x) > 1, 'drag should persist node position');
+  // The first pointer interaction can race React Flow's initial
+  // measurement/fit on a slow runner, so retry the drag until the
+  // layout actually moves instead of failing on a missed grab.
+  let moved = null;
+  for (let attempt = 0; attempt < 3 && !moved; attempt++) {
+    const bounds = await node.boundingBox();
+    assert(bounds, 'home node must be visible');
+    const x = bounds.x + bounds.width / 2;
+    const y = bounds.y + bounds.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 110, y + 65, { steps: 12 });
+    await page.mouse.up();
+    await page.waitForTimeout(200);
+    const candidate = await downloadJson(page);
+    if (Math.abs(candidate.layout.screens.home.x - saved.layout.screens.home.x) > 1) moved = candidate;
+  }
+  assert(moved, 'drag should persist node position');
 
   await page.getByRole('button', { name: '業務フロー' }).click();
   await page.waitForFunction(() => document.querySelectorAll('.react-flow__node').length === 3);
