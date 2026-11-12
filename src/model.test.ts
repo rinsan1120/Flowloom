@@ -149,4 +149,16 @@ describe('routeCone', () => {
   it('returns null when no route exists', () => {
     expect(routeCone(edges, 'b', 'd')).toBeNull();
   });
+  it('does not count routes that pass through the start a second time', () => {
+    const loop = [
+      { id: 'h1', from: 's', to: 'm' },
+      { id: 'h2', from: 'm', to: 's' },
+      { id: 'h3', from: 's', to: 't' },
+      { id: 'h4', from: 's', to: 'r' },
+      { id: 'h5', from: 'r', to: 't' },
+    ];
+    const cone = routeCone(loop, 's', 't');
+    expect(new Set(cone?.nodeIds)).toEqual(new Set(['s', 'r', 't']));
+    expect(new Set(cone?.edgeIds)).toEqual(new Set(['h3', 'h4', 'h5']));
+  });
 });
