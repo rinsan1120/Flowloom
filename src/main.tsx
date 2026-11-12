@@ -18,7 +18,11 @@ function RoutedEdge(props: EdgeProps) {
   const lane = Number(props.data?.lane ?? 0);
   const [path, x, y] = props.source === props.target
     ? getSmoothStepPath({ ...props, offset: 65 + lane * 35, borderRadius: 20 })
-    : getBezierPath({ ...props, curvature: .22 + lane * .13 });
+    : props.data?.back
+      // Return edges take a squared detour under the nodes instead of a
+      // diagonal swoop; longer spans sit further out via backRank.
+      ? getSmoothStepPath({ ...props, offset: 40 + Number(props.data?.backRank ?? 0) * 26, borderRadius: 16 })
+      : getBezierPath({ ...props, curvature: .22 + lane * .13 });
   return <BaseEdge id={props.id} path={path} markerEnd={props.markerEnd} label={props.label} labelX={x} labelY={y} labelStyle={{ fill: '#294c49', fontSize: 11 }} labelBgStyle={{ fill: props.selected ? '#c0eee4' : '#fffefa' }} labelBgPadding={[7, 5]} labelBgBorderRadius={5} style={{ stroke: props.selected ? '#08766b' : '#839995', strokeWidth: props.selected ? 3 : 1.7 }} interactionWidth={22}/>;
 }
 const nodeTypes = { card: Card }; const edgeTypes = { routed: RoutedEdge };
@@ -42,13 +46,30 @@ function App() {
     const positions = mode === 'screens' ? doc?.layout.screens ?? {} : doc?.layout.flows[activeId] ?? {};
     const ports = new Map<string, DiagramNode['data']['ports']>(); visible.forEach(s => ports.set(s.id, []));
     const lanes = new Map<string, number>();
-    const nextEdges = connections.map(t => {
+    const center = (id: string) => { const p = positions[id]; return p ? { x: p.x + 105, y: p.y + 50 } : null; };
+    // Sides follow the actual layout, not ID order: an edge whose target
+    // sits clearly left of its source is a return edge and dives under.
+    const kinds = connections.map(t => {
+      if (t.from === t.to) return 'self' as const;
+      const s = center(t.from), g = center(t.to);
+      if (!s || !g) return 'forward' as const;
+      const dx = g.x - s.x, dy = g.y - s.y;
+      if (dx > 40) return 'forward' as const;
+      if (dx < -40) return 'back' as const;
+      return dy >= 0 ? 'down' as const : 'up' as const;
+    });
+    // Longest returns get the outermost under-channel so they nest.
+    const backRank = new Map<string, number>();
+    connections.map((t, i) => ({ t, i })).filter(({ i }) => kinds[i] === 'back')
+      .sort((a, b) => Math.abs((center(b.t.to)?.x ?? 0) - (center(b.t.from)?.x ?? 0)) - Math.abs((center(a.t.to)?.x ?? 0) - (center(a.t.from)?.x ?? 0)))
+      .forEach(({ t }, rank) => backRank.set(t.id, rank));
+    const nextEdges = connections.map((t, i) => {
       const pair = JSON.stringify([t.from, t.to].sort()); const lane = lanes.get(pair) ?? 0; lanes.set(pair, lane + 1);
-      const self = t.from === t.to; const reverse = t.from > t.to;
-      const sourceSide = self ? Position.Top : reverse ? Position.Bottom : Position.Right;
-      const targetSide = self ? Position.Top : reverse ? Position.Bottom : Position.Left;
+      const kind = kinds[i];
+      const sourceSide = kind === 'self' || kind === 'up' ? Position.Top : kind === 'forward' ? Position.Right : Position.Bottom;
+      const targetSide = kind === 'self' ? Position.Top : kind === 'forward' ? Position.Left : kind === 'down' ? Position.Top : Position.Bottom;
       ports.get(t.from)?.push({ id: `s-${t.id}`, side: sourceSide, type: 'source', percent: 50 }); ports.get(t.to)?.push({ id: `t-${t.id}`, side: targetSide, type: 'target', percent: 50 });
-      return { id: t.id, source: t.from, target: t.to, sourceHandle: `s-${t.id}`, targetHandle: `t-${t.id}`, type: 'routed', data: { lane }, selected: selected?.type === 'edge' && selected.id === t.id, markerEnd: { type: MarkerType.ArrowClosed, color: '#839995' }, label: mode === 'flows' ? t.condition || undefined : undefined, ariaLabel: mode === 'flows' && !t.action ? '接続' : `遷移: ${t.action}` };
+      return { id: t.id, source: t.from, target: t.to, sourceHandle: `s-${t.id}`, targetHandle: `t-${t.id}`, type: 'routed', data: { lane, back: kind === 'back', backRank: backRank.get(t.id) ?? 0 }, selected: selected?.type === 'edge' && selected.id === t.id, markerEnd: { type: MarkerType.ArrowClosed, color: '#839995' }, label: mode === 'flows' ? t.condition || undefined : undefined, ariaLabel: mode === 'flows' && !t.action ? '接続' : `遷移: ${t.action}` };
     });
     ports.forEach(list => Object.values(Position).forEach(side => { const group = list.filter(p => p.side === side); group.forEach((p, i) => p.percent = (i + 1) * 100 / (group.length + 1)); }));
     setNodes(visible.map((s, i) => ({ id: s.id, type: 'card', position: positions[s.id] ?? {x:0,y:0}, selected: selected?.type === 'node' && selected.id === s.id, data: { name: s.name, subtitle: mode === 'screens' ? kindLabel(s as Blueprint['screens'][number]) : `工程 ${String(i + 1).padStart(2, '0')}`, kind: mode === 'screens' ? String(s.kind) : 'step', ports: ports.get(s.id) ?? [] }, ariaLabel: s.name })));
