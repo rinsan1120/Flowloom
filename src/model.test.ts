@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrange, convertDomain, diff, flowConnections, flowEdges, parseBlueprint, routeBetween, withLayout } from './model';
+import { arrange, convertDomain, diff, flowConnections, flowEdges, parseBlueprint, routeBetween, routeCone, withLayout } from './model';
 import { sample } from './sample';
 
 describe('Flowloom JSON', () => {
@@ -124,5 +124,29 @@ describe('routeBetween', () => {
   it('returns null when unreachable and a trivial route for the same node', () => {
     expect(routeBetween(edges, 'c', 'x')).toBeNull();
     expect(routeBetween(edges, 'a', 'a')).toEqual({ nodeIds: ['a'], edgeIds: [] });
+  });
+});
+
+describe('routeCone', () => {
+  const edges = [
+    { id: 'g1', from: 'a', to: 'b' },
+    { id: 'g2', from: 'a', to: 'c' },
+    { id: 'g3', from: 'c', to: 'b' },
+    { id: 'g4', from: 'a', to: 'd' },
+    { id: 'g5', from: 'd', to: 'e' },
+    { id: 'g6', from: 'b', to: 'c' },
+  ];
+  it('includes detours and cycles on some route, excludes dead ends', () => {
+    const cone = routeCone(edges, 'a', 'b');
+    expect(new Set(cone?.nodeIds)).toEqual(new Set(['a', 'b', 'c']));
+    expect(new Set(cone?.edgeIds)).toEqual(new Set(['g1', 'g2', 'g3', 'g6']));
+  });
+  it('follows the branch that actually reaches the target', () => {
+    const cone = routeCone(edges, 'a', 'e');
+    expect(new Set(cone?.nodeIds)).toEqual(new Set(['a', 'd', 'e']));
+    expect(new Set(cone?.edgeIds)).toEqual(new Set(['g4', 'g5']));
+  });
+  it('returns null when no route exists', () => {
+    expect(routeCone(edges, 'b', 'd')).toBeNull();
   });
 });

@@ -4,7 +4,7 @@ import { ReactFlow, ReactFlowProvider, Background, Controls, MiniMap, Handle, Po
 import { toPng, toSvg } from 'html-to-image';
 import '@xyflow/react/dist/style.css';
 import './style.css';
-import { arrange, diff, flowConnections, MAX_BYTES, parseBlueprint, routeBetween, withLayout, type Blueprint } from './model';
+import { arrange, diff, flowConnections, MAX_BYTES, parseBlueprint, routeBetween, routeCone, withLayout, type Blueprint } from './model';
 import { sample } from './sample';
 
 type DiagramNode = Node<{name: string; subtitle: string; kind: string; ports: { id: string; side: Position; type: 'source' | 'target'; percent: number }[]}, 'card'>;
@@ -113,7 +113,7 @@ function App() {
     const fromNodeId = visible.some(s => s.id === fromId) ? fromId! : visible[0]?.id;
     let dimNodes: Set<string> | null = null; let dimEdges: Set<string> | null = null;
     if (selected?.type === 'node' && fromNodeId && selected.id !== fromNodeId) {
-      const go = routeBetween(connections, fromNodeId, selected.id);
+      const go = routeCone(connections, fromNodeId, selected.id);
       const back = routeBetween(connections, selected.id, fromNodeId);
       const litN = new Set<string>([fromNodeId, selected.id]); const litE = new Set<string>();
       for (const r of [go, back]) { r?.nodeIds.forEach(id => litN.add(id)); r?.edgeIds.forEach(id => litE.add(id)); }

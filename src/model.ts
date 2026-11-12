@@ -100,6 +100,27 @@ export function routeBetween(edges: { id: string; from: string; to: string }[], 
   }
   return null;
 }
+
+// Every node and edge that lies on ANY route from `from` to `to`:
+// reachable from `from` and able to reach `to`. Null when no route.
+export function routeCone(edges: { id: string; from: string; to: string }[], from: string, to: string): { nodeIds: string[]; edgeIds: string[] } | null {
+  const reach = (start: string, reverse: boolean) => {
+    const seen = new Set([start]); const queue = [start];
+    while (queue.length) {
+      const cur = queue.shift()!;
+      for (const e of edges) {
+        const next = reverse ? (e.to === cur ? e.from : null) : (e.from === cur ? e.to : null);
+        if (next && !seen.has(next)) { seen.add(next); queue.push(next); }
+      }
+    }
+    return seen;
+  };
+  const a = reach(from, false);
+  if (!a.has(to)) return null;
+  const b = reach(to, true);
+  const nodes = new Set([...a].filter(id => b.has(id)));
+  return { nodeIds: [...nodes], edgeIds: edges.filter(e => nodes.has(e.from) && nodes.has(e.to)).map(e => e.id) };
+}
 function complete(ids: string[], saved: Record<string, Point>, edges: {from: string; to: string}[]) {
   const missing = ids.filter(id => !Object.hasOwn(saved, id));
   if (!missing.length) return Object.fromEntries(ids.map(id => [id, saved[id]]));
