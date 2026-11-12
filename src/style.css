@@ -13,3 +13,4 @@
 .file-side{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
 .file-side .ai-prompt-open{margin-top:0}
 @media(max-width:900px){.file-side .ai-prompt-open{display:none}}
+.legend-edge{width:34px;height:21px;flex-shrink:0}
