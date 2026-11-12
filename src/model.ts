@@ -8,7 +8,8 @@ const details = { description: text.optional(), sourceDetails: z.record(z.string
 const screen = z.object({ id, name: text.min(1), kind: z.enum(['screen', 'dialog', 'unknown']), kindInferred: z.boolean().optional(), actions: z.array(text).max(200).optional(), ...details }).passthrough();
 const transition = z.object({ id, from: id, to: id, action: text, condition: text.optional(), note: text.optional(), ...details }).passthrough();
 const step = z.object({ id, name: text.min(1), condition: text.optional(), ...details }).passthrough();
-const flow = z.object({ id, name: text.min(1), actor: text.optional(), steps: z.array(step).max(500), ...details }).passthrough();
+const link = z.object({ id, from: id, to: id, condition: text.optional(), note: text.optional(), ...details }).passthrough();
+const flow = z.object({ id, name: text.min(1), actor: text.optional(), steps: z.array(step).max(500), links: z.array(link).max(2000).optional(), ...details }).passthrough();
 const point = z.object({ x: z.number().finite().min(-1000000).max(1000000), y: z.number().finite().min(-1000000).max(1000000) });
 const positions = z.record(id, point);
 const schema = z.object({ schemaVersion: z.literal('1.0'), title: text.min(1), screens: z.array(screen).max(500), transitions: z.array(transition).max(2000), flows: z.array(flow).max(100), layout: z.object({ screens: positions, flows: z.record(id, positions) }), importWarnings: z.array(text).max(100).optional() }).passthrough();
@@ -58,6 +59,12 @@ export function parseBlueprint(input: string): Blueprint {
   if (doc.flows.reduce((n, f) => n + f.steps.length, 0) > 3000) throw new Error('工程の合計は3000件以下にしてください');
   const ids = new Set(doc.screens.map(s => s.id));
   if (doc.transitions.some(t => !ids.has(t.from) || !ids.has(t.to))) throw new Error('存在しない画面を参照する遷移があります');
+  for (const f of doc.flows) {
+    if (!f.links) continue;
+    unique(f.links, '接続');
+    const stepIds = new Set(f.steps.map(s => s.id));
+    if (f.links.some(l => !stepIds.has(l.from) || !stepIds.has(l.to))) throw new Error('存在しない工程を参照する接続があります');
+  }
   return withLayout(doc);
 }
 export function arrange(ids: string[], edges: {from: string; to: string}[]): Record<string, Point> {
@@ -65,7 +72,14 @@ export function arrange(ids: string[], edges: {from: string; to: string}[]): Rec
   ids.forEach(id => graph.setNode(id, { width: 210, height: 100 })); edges.forEach((e, i) => { if (e.from !== e.to) graph.setEdge(e.from, e.to, {}, String(i)); }); dagre.layout(graph);
   return Object.fromEntries(ids.map(id => { const n = graph.node(id); return [id, { x: n.x - 105, y: n.y - 50 }]; }));
 }
-export const flowEdges = (f: Blueprint['flows'][number]) => f.steps.slice(1).map((s, i) => ({ from: f.steps[i].id, to: s.id }));
+export type FlowConnection = { id: string; from: string; to: string; action: string; condition?: string; note?: string; description?: string; sourceDetails?: Record<string, unknown> };
+export function flowConnections(f: Blueprint['flows'][number]): FlowConnection[] {
+  // A flow with explicit links is a graph (branches, merges, loops);
+  // without links the step order itself is the chain.
+  if (f.links) return f.links.map(l => ({ id: l.id, from: l.from, to: l.to, action: l.condition ?? '', condition: l.condition, note: l.note, description: l.description, sourceDetails: l.sourceDetails }));
+  return f.steps.slice(1).map((s, i) => ({ id: `order-${i}`, from: f.steps[i].id, to: s.id, action: `${i + 1} → ${i + 2}` }));
+}
+export const flowEdges = (f: Blueprint['flows'][number]) => flowConnections(f).map(({ from, to }) => ({ from, to }));
 function complete(ids: string[], saved: Record<string, Point>, edges: {from: string; to: string}[]) {
   const missing = ids.filter(id => !Object.hasOwn(saved, id));
   if (!missing.length) return Object.fromEntries(ids.map(id => [id, saved[id]]));
@@ -79,7 +93,7 @@ export function withLayout(doc: Blueprint, current?: Blueprint): Blueprint {
   return { ...doc, layout: { screens, flows } };
 }
 export function diff(before: Blueprint, after: Blueprint) {
-  const groups = (d: Blueprint) => [d.screens.map(s => s.id), d.transitions.map(t => t.id), d.flows.map(f => f.id), d.flows.flatMap(f => f.steps.map(s => JSON.stringify([f.id, s.id])))];
+  const groups = (d: Blueprint) => [d.screens.map(s => s.id), d.transitions.map(t => t.id), d.flows.map(f => f.id), d.flows.flatMap(f => f.steps.map(s => JSON.stringify([f.id, s.id]))), d.flows.flatMap(f => (f.links ?? []).map(l => JSON.stringify([f.id, l.id])))];
   const a = groups(before), b = groups(after);
-  return ['画面', '遷移', 'フロー', '工程'].map((label, i) => ({ label, added: b[i].filter(id => !a[i].includes(id)), removed: a[i].filter(id => !b[i].includes(id)) }));
+  return ['画面', '遷移', 'フロー', '工程', '接続'].map((label, i) => ({ label, added: b[i].filter(id => !a[i].includes(id)), removed: a[i].filter(id => !b[i].includes(id)) }));
 }

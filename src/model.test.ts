@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrange, convertDomain, diff, parseBlueprint, withLayout } from './model';
+import { arrange, convertDomain, diff, flowConnections, flowEdges, parseBlueprint, withLayout } from './model';
 import { sample } from './sample';
 
 describe('Flowloom JSON', () => {
@@ -74,5 +74,36 @@ describe('Flowloom JSON', () => {
     expect(Object.keys(points)).toEqual(['a', 'b']);
     expect(Number.isFinite(points.a.x)).toBe(true);
     expect(Number.isFinite(points.b.y)).toBe(true);
+  });
+
+  it('treats a flow with links as a graph and keeps the chain for flows without links', () => {
+    const branched = parseBlueprint(JSON.stringify({ schemaVersion: '1.0', title: '分岐', screens: [], transitions: [], layout: { screens: {}, flows: {} },
+      flows: [{ id: 'f', name: '判定', steps: [{ id: 'a', name: '開始' }, { id: 'b', name: '承認' }, { id: 'c', name: '差し戻し' }],
+        links: [{ id: 'go', from: 'a', to: 'b', condition: '問題なし' }, { id: 'back', from: 'b', to: 'c' }, { id: 'redo', from: 'c', to: 'a', condition: '再提出' }] }] }));
+    expect(flowEdges(branched.flows[0])).toEqual([{ from: 'a', to: 'b' }, { from: 'b', to: 'c' }, { from: 'c', to: 'a' }]);
+    expect(flowConnections(branched.flows[0]).map(c => c.condition)).toEqual(['問題なし', undefined, '再提出']);
+    expect(Object.keys(branched.layout.flows.f)).toHaveLength(3);
+    const chained = sample();
+    expect(flowEdges(chained.flows[1])).toEqual([{ from: 'receive', to: 'close' }]);
+    expect(flowConnections(chained.flows[0]).map(c => c.id)).toEqual(['start', 'approve', 'retry']);
+  });
+
+  it('rejects flow links with duplicate IDs or missing step references', () => {
+    const base = { schemaVersion: '1.0', title: 'x', screens: [] as unknown[], transitions: [] as unknown[], layout: { screens: {}, flows: {} },
+      flows: [{ id: 'f', name: 'f', steps: [{ id: 'a', name: 'a' }, { id: 'b', name: 'b' }], links: [{ id: 'l', from: 'a', to: 'b' }] }] };
+    const dup = structuredClone(base); dup.flows[0].links.push({ id: 'l', from: 'b', to: 'a' });
+    expect(() => parseBlueprint(JSON.stringify(dup))).toThrow(/重複/);
+    const missing = structuredClone(base); missing.flows[0].links[0].to = 'ghost';
+    expect(() => parseBlueprint(JSON.stringify(missing))).toThrow(/存在しない工程/);
+  });
+
+  it('counts flow link additions and removals in the update diff', () => {
+    const before = sample();
+    const after = sample();
+    after.flows[0].links = (after.flows[0].links ?? []).filter(l => l.id !== 'retry');
+    after.flows[0].links?.push({ id: 'direct', from: 'find', to: 'lend' });
+    const links = diff(before, after).find(d => d.label === '接続');
+    expect(links?.removed).toEqual([JSON.stringify(['lending', 'retry'])]);
+    expect(links?.added).toEqual([JSON.stringify(['lending', 'direct'])]);
   });
 });

@@ -15,6 +15,7 @@ export const sample = () => parseBlueprint(JSON.stringify({ schemaVersion: '1.0'
     { id: 'cancel', from: 'confirm', to: 'book', action: 'キャンセル' },
     { id: 'records', from: 'home', to: 'history', action: '記録を見る' }
   ], flows: [
-    { id: 'lending', name: '本を借りる', actor: '利用者', steps: [ { id: 'find', name: '本を探す', description: '読みたい本を選びます。' }, { id: 'check', name: '貸出状況を確認', condition: '本が選択されている' }, { id: 'lend', name: '貸出を確定', description: '返却期限を記録します。', condition: '貸出可能である' } ] },
+    { id: 'lending', name: '本を借りる', actor: '利用者', steps: [ { id: 'find', name: '本を探す', description: '読みたい本を選びます。' }, { id: 'check', name: '貸出状況を確認', condition: '本が選択されている' }, { id: 'lend', name: '貸出を確定', description: '返却期限を記録します。', condition: '貸出可能である' } ],
+      links: [ { id: 'start', from: 'find', to: 'check' }, { id: 'approve', from: 'check', to: 'lend', condition: '貸出可能である' }, { id: 'retry', from: 'check', to: 'find', condition: '貸出中は別の本を探す' } ] },
     { id: 'return', name: '本を返す', steps: [ { id: 'receive', name: '本を受け取る' }, { id: 'close', name: '返却を記録' } ] }
   ], layout: { screens: {}, flows: {} } }));
