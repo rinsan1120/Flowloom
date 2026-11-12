@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useRef, useState } from 'react';
+import { StrictMode, useEffect, useId, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ReactFlow, ReactFlowProvider, Background, Controls, MiniMap, Handle, Position, MarkerType, BaseEdge, getBezierPath, getSmoothStepPath, getNodesBounds, getViewportForBounds, useReactFlow, applyNodeChanges, type Node, type Edge, type NodeProps, type EdgeProps } from '@xyflow/react';
 import { toPng, toSvg } from 'html-to-image';
@@ -61,13 +61,15 @@ const AI_PROMPT = `あなたはアプリの設計を「Flowloom JSON」という
 # 図にするアプリについて
 （ここに対象アプリの概要、画面の一覧、各画面でできる操作、画面同士のつながり、業務の流れを書く。既存のアプリの説明資料や画面一覧があれば、それを貼ってもよい）`;
 function AiPromptHelp() {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try { await navigator.clipboard.writeText(AI_PROMPT); }
     catch { const ta = document.createElement('textarea'); ta.value = AI_PROMPT; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
     setCopied(true); window.setTimeout(() => setCopied(false), 2000);
   };
-  return <details className="ai-prompt"><summary>AIにJSONを作らせるプロンプト</summary><p>ChatGPTやClaudeなどのAIにこのプロンプトを貼り、「図にするアプリについて」の部分に、対象アプリの画面構成や操作の流れを書く（既存のアプリなら、その説明や画面一覧を貼る）と、Flowloomで開けるJSONに整理させることができます。</p><pre>{AI_PROMPT}</pre><button className="primary" onClick={() => void copy()}>{copied ? 'コピーしました' : 'プロンプトをコピー'}</button></details>;
+  return <><button type="button" className="text-button ai-prompt-open" onClick={() => ref.current?.showModal()}>AIにJSONを作らせるプロンプト</button><dialog ref={ref} className="ai-prompt-dialog" aria-labelledby={titleId} onClick={e => { if (e.target === ref.current) ref.current?.close(); }}><span className="eyebrow">AI PROMPT</span><h2 id={titleId}>AIにJSONを作らせるプロンプト</h2><p>ChatGPTやClaudeなどのAIにこのプロンプトを貼り、「図にするアプリについて」の部分に、対象アプリの画面構成や操作の流れを書く（既存のアプリなら、その説明や画面一覧を貼る）と、Flowloomで開けるJSONに整理させることができます。</p><pre>{AI_PROMPT}</pre><div className="dialog-actions"><button onClick={() => ref.current?.close()}>閉じる</button><button className="primary" onClick={() => void copy()}>{copied ? 'コピーしました' : 'プロンプトをコピー'}</button></div></dialog></>;
 }
 const kindLabel = (s: Blueprint['screens'][number]) => `${s.kind === 'dialog' ? 'ダイアログ' : s.kind === 'screen' ? '通常画面' : '種別不明'}${s.kindInferred ? '（推定）' : ''}`;
 type Selection = { type: 'node' | 'edge'; id: string } | null;

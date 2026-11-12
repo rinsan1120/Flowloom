@@ -7,10 +7,6 @@
 .neighbors p{font-size:12px;color:#718174;line-height:1.8}
 .route-from{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .route-from button{font-size:11px;padding:6px 10px;min-height:32px}
-.ai-prompt{margin-top:20px;text-align:left}
-.ai-prompt summary{font-size:12px;color:#49655a;font-weight:600}
-.ai-prompt p{font-size:12px;line-height:1.8;color:#677b6c;margin:10px 0 0}
-.ai-prompt pre{max-height:300px;margin-top:10px}
-.ai-prompt>button{margin-top:10px}
-.guide .ai-prompt{margin-top:24px}
-.welcome .ai-prompt{max-width:560px;width:100%}
+.ai-prompt-open{display:block;margin-top:18px;font-size:12px;color:#49655a;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.guide .ai-prompt-open{margin-top:22px}
+.ai-prompt-dialog pre{max-height:50dvh}
